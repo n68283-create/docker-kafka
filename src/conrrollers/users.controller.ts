@@ -6,12 +6,11 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-async createUser(@Body() body: any) {
-  try {
-    await this.usersService.createUser(body);
-    return { status: 'User created & enqueued' };
-  } catch (err) {
-    throw new HttpException(
+  async createUser(@Body() body: any) {
+    try {
+      return await this.usersService.createUser(body);
+    } catch (err) {
+      throw new HttpException(
       { status: 'error', message: 'Failed to enqueue user', details: err.message },
       HttpStatus.SERVICE_UNAVAILABLE,
     );

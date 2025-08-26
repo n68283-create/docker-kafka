@@ -7,6 +7,7 @@ export class UsersService {
 
   async createUser(data: any) {
     await this.kafkaService.publish('users.intake', { userCreated: data });
+    return { success: true, message: 'User data submitted for validation and processing' };
   }
   
 }
