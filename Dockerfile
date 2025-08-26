@@ -1,24 +1,23 @@
-# שימוש בתמונה רשמית של Node.js כבסיס
+# Use official Node.js image as base
 FROM node:20-alpine
 
-# הגדרת ספריית עבודה בתוך הקונטיינר
+# Set working directory inside container
 WORKDIR /app
 
-# העתקת קבצי package.json ו- package-lock.json (אם יש)
+# Copy package.json and package-lock.json files
 COPY package*.json ./
 
-# התקנת התלויות
-# RUN npm install --production
+# Install dependencies
 RUN npm install
 
-# העתקת שאר הקוד לתוך הקונטיינר
+# Copy rest of code into container
 COPY . .
 
-# בניית הפרויקט (אם יש צורך, למשל אם משתמשים ב- TypeScript)
+# Build the project
 RUN npm run build
 
-# פתיחת הפורט שהאפליקציה רצה עליו (ברירת מחדל Nest הוא 3000)
+# Expose port that application runs on
 EXPOSE 3000
 
-# הפקודה שמריצה את האפליקציה
+# Command to run the application
 CMD ["node", "dist/main.js"]

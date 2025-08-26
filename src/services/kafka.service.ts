@@ -1,35 +1,42 @@
-// import { Injectable, OnModuleInit } from '@nestjs/common';
-// import { Kafka, Producer, Consumer } from 'kafkajs';
+import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
+import { ClientKafka } from '@nestjs/microservices';
+import { Inject } from '@nestjs/common';
+import { lastValueFrom } from 'rxjs';
+@Injectable()
+export class KafkaService implements OnModuleInit {
+  private readonly logger = new Logger(KafkaService.name);
 
-// @Injectable()
-// export class KafkaService implements OnModuleInit {
-//   private kafka = new Kafka({
-//     clientId: 'my-app',
-//     brokers: ['localhost:9092'],
-//   });
+  constructor(
+    @Inject('KAFKA_SERVICE') private readonly client: ClientKafka,
+  ) {}
 
-//   private producer: Producer;
-//   private consumer: Consumer;
+  async onModuleInit() {
+    await this.client.connect();
+    this.logger.log('Kafka producer connected');
+  }
+  
+    async onApplicationShutdown() {
+    await this.client.close();
+    this.logger.log('Kafka producer disconnected');
+  }
 
-//   async onModuleInit() {
-//     this.producer = this.kafka.producer();
-//     await this.producer.connect();
+  async publish(topic: string, message: unknown): Promise<void> {
+    const maxRetries = 3;
+    let attempt = 0;
 
-//     this.consumer = this.kafka.consumer({ groupId: 'my-group' });
-//     await this.consumer.connect();
-//     await this.consumer.subscribe({ topic: 'test-topic', fromBeginning: true });
-
-//     await this.consumer.run({
-//       eachMessage: async ({ topic, partition, message }) => {
-//         console.log(`Received message: ${message.value?.toString()}`);
-//       },
-//     });
-//   }
-
-//   async sendMessage(topic: string, message: any) {
-//     await this.producer.send({
-//       topic,
-//       messages: [{ value: JSON.stringify(message) }],
-//     });
-//   }
-// }
+    while (attempt < maxRetries) {
+      try {
+        await lastValueFrom(this.client.emit(topic, message));
+        this.logger.log(`Message published to ${topic}: ${JSON.stringify(message)}`);
+        return;
+      } catch (err) {
+        attempt++;
+        this.logger.error(`Failed to publish message to ${topic} (attempt ${attempt}): ${err.message}`);
+        if (attempt >= maxRetries) {
+          throw new Error(`Could not publish message to ${topic} after ${maxRetries} attempts`);
+        }
+        await new Promise(res => setTimeout(res, 500 * attempt));
+      }
+    }
+  }
+}
